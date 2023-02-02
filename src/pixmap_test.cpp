@@ -52,22 +52,27 @@ int main(int argc, char** argv)
    cout << "loaded earth: " << image.width() << " " << image.height() << endl;
 
    // resize
+   cout << "resizing earth" << std::endl;
    Image resize = image.resize(200,300);
    resize.save("earth-200-300.png");
 
    // grayscale
+   cout << "grayscaling earth" << std::endl;
    Image grayscale = image.grayscale(); 
    grayscale.save("earth-grayscale.png");
 
    // flip horizontal
+   cout << "flipping earth horizontally" << std::endl;
    Image flip = image.flipHorizontal(); 
    flip.save("earth-flip.png"); 
 
    // sub image
+   cout << "subimage earth" << std::endl;
    Image sub = image.subimage(200, 200, 100, 100); 
    sub.save("earth-subimage.png"); 
 
    // gamma correction
+   cout << "gamma correction earth" << std::endl;
    Image gamma = image.gammaCorrect(0.6f); 
    gamma.save("earth-gamma-0.6.png"); 
 
@@ -75,6 +80,7 @@ int main(int argc, char** argv)
    gamma.save("earth-gamma-2.2.png"); 
 
    // alpha blend
+   cout << "blending earth and soup" << std::endl;
    Image soup;
    soup.load("../images/soup.png");
 

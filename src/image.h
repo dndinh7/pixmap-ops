@@ -13,9 +13,9 @@ namespace agl {
  * 
  */
 struct Pixel {
-    unsigned char r;
-    unsigned char g;
-    unsigned char b;
+  unsigned char r;
+  unsigned char g;
+  unsigned char b;
 };
 
 /**
@@ -33,7 +33,7 @@ class Image {
   /** 
    * @brief Load the given filename 
    * @param filename The file to load, relative to the running directory
-   * @param flip Whether the file should flipped vertally when loaded
+   * @param flip Whether the file should flipped vertically when loaded
    * 
    * @verbinclude sprites.cpp
    */
@@ -59,7 +59,12 @@ class Image {
    *
    * Data will have size width * height * 4 (RGB)
    */
-  char* data() const;
+  unsigned char* data() const;
+
+  /**
+   * @brief Return the number of channels in data
+  */
+  int channel() const;
 
   /**
    * @brief Replace image RGB data
@@ -90,7 +95,7 @@ class Image {
   void set(int row, int col, const Pixel& color);
 
   /**
- * @brief Set the pixel RGB color at index i
+ * @brief Get the pixel RGB color at index i
  * @param i The index (value between 0 and width * height)
  *
  * Pixel colors are unsigned char, e.g. in range 0 to 255
@@ -104,7 +109,6 @@ class Image {
  * Pixel colors are unsigned char, e.g. in range 0 to 255
  */
   void set(int i, const Pixel& c);
-
 
   // resize the image
   Image resize(int width, int height) const;
@@ -188,8 +192,14 @@ class Image {
   // Fill this image with a color
   void fill(const Pixel& c);
 
- private:
-   // todo
+  // Checks if the args row and col are in the range and if myData is not nullptr
+  void inImageCheck(int row, int col) const;
+
+  private:
+    int myWidth;
+    int myHeight;
+    unsigned char* myData;
+    int myChannels= 3;// default is 3 (unless it changes somehow by load method)
 };
 }  // namespace agl
 #endif  // AGL_IMAGE_H_
