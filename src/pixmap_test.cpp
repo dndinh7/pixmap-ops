@@ -26,27 +26,33 @@ int main(int argc, char** argv)
    cout << "loaded feep: " << image.width() << " " << image.height() << endl;
 
    // test: copy constructor
+   cout << "copy constructor" << endl;
    Image copy = image; 
    copy.save("feep-test-copy.png"); // should match original and load into gimp
 
    // test: assignment operator
+   cout << "assignment operator" << endl;
    copy = image; 
    copy.save("feep-test-assignment.png"); // should match original and load into gimp
 
    // should print r,g,b
+   cout << "printing r,g,b" << endl;
    Pixel pixel = image.get(1, 1);
    cout << (int) pixel.r << " " << (int) pixel.g << " " << (int) pixel.b << endl;
 
    // test: setting a color
+   cout << "setting color" << endl;
    pixel.r = 255;
    image.set(1, 1, pixel);
    image.save("feep-test-newcolor.png");
 
    // test a non-trivial image
+   cout << "loading earth" << endl;
    if (!image.load("../images/earth.png")) {
       std::cout << "ERROR: Cannot load image! Exiting...\n";
       exit(0);
    }
+
 
    // should print 400 400
    cout << "loaded earth: " << image.width() << " " << image.height() << endl;
@@ -84,6 +90,13 @@ int main(int argc, char** argv)
    Image soup;
    soup.load("../images/soup.png");
 
+   // replacing
+   cout << "replacing a part of earth with soup" << std::endl;
+   Image replaced_earth= image;
+   replaced_earth.replace(soup, 0, 0);
+   replaced_earth.save("earth-soup-replaced.png");
+
+
    int y = (int) (0.5f * (image.width() - soup.width()));
    int x = (int) (0.5f * (image.height() - soup.height()));
    Image background = image.subimage(x, y, soup.width(), soup.height());
@@ -91,5 +104,6 @@ int main(int argc, char** argv)
    Image blend = background.alphaBlend(soup, 0.5f);
    image.replace(blend, x, y);
    image.save("earth-blend-0.5.png");
+   
 }
 

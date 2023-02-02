@@ -62,9 +62,11 @@ class Image {
   unsigned char* data() const;
 
   /**
-   * @brief Return the number of channels in data
+   * @brief Returns the total bytes of the image
+   * 
+   * Size: width * height * 3
   */
-  int channel() const;
+  int bytes() const;
 
   /**
    * @brief Replace image RGB data
@@ -199,7 +201,7 @@ class Image {
     int myWidth;
     int myHeight;
     unsigned char* myData;
-    int myChannels= 3;// default is 3 (unless it changes somehow by load method)
+    int totalBytes;
 };
 }  // namespace agl
 #endif  // AGL_IMAGE_H_

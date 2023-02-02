@@ -1,52 +1,55 @@
 // Copyright 2021, Aline Normoyle, alinen
 
-#include "image.h"
+/**
+ * This program defines the methods of the Image class
+ * which allows for loading, saving images. It also
+ * supports many image manipulation methods.
+ * 
+ * @author David Dinh
+ * 
+*/
 
+#include "image.h"
 #include <cassert>
 #define STB_IMAGE_WRITE_IMPLEMENTATION
 #include "stb/stb_image_write.h"
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 #include <algorithm>
+#include <cstring>
+
+#define NUM_CHANNELS 3 // assumes that there will only be three components in an image
 
 namespace agl {
 
 enum Color { RED = 0, GREEN, BLUE };
 
 Image::Image() {
-   this->myData= nullptr;
+  this->myData= nullptr;
 }
 
 Image::Image(int width, int height): myWidth(width), myHeight(height) {
-   this->myData= new unsigned char[width * height * this->myChannels];
+  this->myData= new unsigned char[width * height * NUM_CHANNELS];
+  this->totalBytes= width * height * NUM_CHANNELS;
 }
 
-// copy constructor, not needed to free
-Image::Image(const Image& orig) {
-  this->myWidth= orig.width();
-  this->myHeight= orig.height();
-  this->myData= orig.data();
 
+Image::Image(const Image& orig) {
+  this->myData= nullptr;
+  this->set(orig.width(), orig.height(), orig.data());
 }
 
 Image& Image::operator=(const Image& orig) {
   if (&orig == this) {
     return *this;
-  }   
-
-  this->myWidth= orig.width();
-  this->myHeight= orig.height();
-  
-  // free the data before reassigning its value
-  if (!this->myData) delete[] this->myData;
-  this->myData= orig.data();
-  this->myChannels= orig.channel();
+  }
+  this->set(orig.width(), orig.height(), orig.data());
 
   return *this;
 }
 
 Image::~Image() {
-   delete[] this->myData;
+  if (this->myData != nullptr) delete[] this->myData;
 }
 
 int Image::width() const {
@@ -61,37 +64,45 @@ unsigned char* Image::data() const {
   return this->myData;
 }
 
-int Image::channel() const {
-  return this->myChannels;
+int Image::bytes() const {
+  return this->totalBytes;
 }
 
 void Image::set(int width, int height, unsigned char* data) {
-  assert(sizeof(data) != width * height * this->myChannels);
+  assert(sizeof(data) != width * height * NUM_CHANNELS);
   this->myWidth= width;
   this->myHeight= height;
+  this->totalBytes= this->myWidth * this->myHeight * NUM_CHANNELS;
 
-  if (!this->myData) delete[] this->myData;
-  this->myData= data;
+  if (this->myData != nullptr) {
+    delete[] this->myData;
+    this->myData= nullptr;
+  }
+  this->myData= new unsigned char[this->totalBytes];
+  std::memcpy(this->myData, data, this->totalBytes);
 }
 
 bool Image::load(const std::string& filename, bool flip) {
-  if (!this->myData) delete[] this->myData;
   const char* file= filename.c_str();
-  this->myData= stbi_load(file, &myWidth, &myHeight, &myChannels, 3); // force it to have 4 channels
-  
-  return this->myData != nullptr;
+  unsigned char* data= stbi_load(file, &this->myWidth, &myHeight, nullptr, 3); // force it to have 4 channels
+  bool success= data != nullptr;
+  this->set(this->myWidth, this->myHeight, data);
+  stbi_image_free(data);
+
+  return success;
 }
 
 bool Image::save(const std::string& filename, bool flip) const {
   const char* file= filename.c_str();
-  int success= stbi_write_png(file, this->myWidth, this->myHeight, this->myChannels, this->myData, this->myWidth * this->myChannels);
+  int success= stbi_write_png(file, this->myWidth, this->myHeight, NUM_CHANNELS, 
+    this->myData, this->myWidth * NUM_CHANNELS);
   return success == 1;
 }
 
 Pixel Image::get(int row, int col) const {
   this->inImageCheck(row, col);
 
-  int idx= (row * this->myWidth + col) * this->myChannels;
+  int idx= (row * this->myWidth + col) * NUM_CHANNELS;
   //                  red                 green                 blue
   return Pixel{ this->myData[idx + RED], this->myData[idx + GREEN], this->myData[idx + BLUE] };
 }
@@ -99,7 +110,7 @@ Pixel Image::get(int row, int col) const {
 void Image::set(int row, int col, const Pixel& color) {
   this->inImageCheck(row, col);
 
-  int idx= (row * this->myWidth + col) * this->myChannels;
+  int idx= (row * this->myWidth + col) * NUM_CHANNELS;
   this->myData[idx + RED]= color.r;
   this->myData[idx + GREEN] = color.g;
   this->myData[idx + BLUE] = color.b;
@@ -108,7 +119,7 @@ void Image::set(int row, int col, const Pixel& color) {
 Pixel Image::get(int i) const
 {
   assert(i >= 0 && i < this->myWidth * this->myHeight);
-  int idx= i * this->myChannels;
+  int idx= i * NUM_CHANNELS;
 
   return Pixel{ this->myData[idx + RED], this->myData[idx + GREEN], this->myData[idx + BLUE] };
 }
@@ -116,10 +127,10 @@ Pixel Image::get(int i) const
 void Image::set(int i, const Pixel& c)
 {
   assert(i >= 0 && i < this->myWidth * this->myHeight);
-  int idx= i * this->myChannels;
+  int idx= i * NUM_CHANNELS;
   this->myData[idx + RED]= c.r;
   this->myData[idx + GREEN]= c.g;
-  this->myData[idx  + BLUE]= c.r;
+  this->myData[idx + BLUE]= c.b;
 }
 
 Image Image::resize(int w, int h) const {
@@ -143,17 +154,14 @@ Image Image::resize(int w, int h) const {
 
 Image Image::flipHorizontal() const {
   Image result(this->myWidth, this->myHeight);
-  unsigned char* data= this->data();
 
-  for (int i_start= 0; i_start < this->myHeight/2; i_start++) {
+  for (int i_start= 0; i_start < this->myHeight; i_start++) {
     int i_end= this->myHeight - 1 - i_start;
-
-    // move the bottom row of the original image to the top row of the new image
-    memmove(data + (i_start * this->myWidth), this->myData + (i_end * this->myWidth), this->myWidth);
-
-    // move the top row of the original image to the bottom row of the new image
-    memmove(data + (i_end * this->myWidth), this->myData + (i_start * this->myWidth), this->myWidth);
+    for (int j= 0; j < this->myWidth; j++) {
+      result.set(i_start, j, this->get(i_end, j));
+    }
   }
+
   return result;
 
 }
@@ -223,9 +231,9 @@ Image Image::difference(const Image& other) const {
 }
 
 Image Image::lightest(const Image& other) const {
-   Image result(0, 0);
+  Image result(0, 0);
   
-   return result;
+  return result;
 }
 
 Image Image::darkest(const Image& other) const {
@@ -236,17 +244,18 @@ Image Image::darkest(const Image& other) const {
 
 Image Image::gammaCorrect(float gamma) const {
   Image result(this->myWidth, this->myHeight);
+   
 
-  Pixel pixel;
   for (int i= 0; i < this->myWidth * this->myHeight; i++) {
-    pixel= this->get(i);
-    pixel.r= std::pow(pixel.r, 1.0f/gamma);
-    pixel.g= std::pow(pixel.g, 1.0f/gamma);
-    pixel.b= std::pow(pixel.b, 1.0f/gamma);
+    Pixel pixel= this->get(i);
+
+    pixel.r= std::pow(pixel.r/255.0f, 1.0f/gamma) * 255;
+    pixel.g= std::pow(pixel.g/255.0f, 1.0f/gamma) * 255;
+    pixel.b= std::pow(pixel.b/255.0f, 1.0f/gamma) * 255;
 
     result.set(i, pixel);
   }
-
+  
   return result;
 }
 
@@ -302,9 +311,9 @@ Image Image::colorJitter(int size) const {
 }
 
 Image Image::bitmap(int size) const {
-   Image image(0, 0);
+  Image image(0, 0);
    
-   return image;
+  return image;
 }
 
 void Image::fill(const Pixel& c) {
