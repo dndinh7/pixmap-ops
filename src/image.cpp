@@ -3,9 +3,20 @@
 /**
  * This program defines the methods of the Image class
  * which allows for loading, saving images. It also
- * supports many image manipulation methods.
+ * supports many image manipulation methods. This
+ * program loads each image with three channels.
+ * 
+ * Current Supported Image Manipulation Methods:
+ * - Flip Horizontal
+ * - Replace
+ * - SubImage
+ * - Resize
+ * - Greyscale
+ * - Gamma Correction
+ * - Alpha Blend
  * 
  * @author David Dinh
+ * @version Feb 2, 2023
  * 
 */
 
@@ -74,6 +85,7 @@ void Image::set(int width, int height, unsigned char* data) {
   this->myHeight= height;
   this->totalBytes= this->myWidth * this->myHeight * NUM_CHANNELS;
 
+  // Assures that we clean up the data we are replacing to avoid leaks
   if (this->myData != nullptr) {
     delete[] this->myData;
     this->myData= nullptr;
@@ -82,20 +94,26 @@ void Image::set(int width, int height, unsigned char* data) {
   std::memcpy(this->myData, data, this->totalBytes);
 }
 
+// Assumes that flip is false for now
 bool Image::load(const std::string& filename, bool flip) {
   const char* file= filename.c_str();
   unsigned char* data= stbi_load(file, &this->myWidth, &myHeight, nullptr, 3); // force it to have 4 channels
+
   bool success= data != nullptr;
+
   this->set(this->myWidth, this->myHeight, data);
+
   stbi_image_free(data);
 
   return success;
 }
 
+// Assumes that flip is false for now
 bool Image::save(const std::string& filename, bool flip) const {
   const char* file= filename.c_str();
   int success= stbi_write_png(file, this->myWidth, this->myHeight, NUM_CHANNELS, 
     this->myData, this->myWidth * NUM_CHANNELS);
+
   return success == 1;
 }
 
@@ -111,6 +129,7 @@ void Image::set(int row, int col, const Pixel& color) {
   this->inImageCheck(row, col);
 
   int idx= (row * this->myWidth + col) * NUM_CHANNELS;
+
   this->myData[idx + RED]= color.r;
   this->myData[idx + GREEN] = color.g;
   this->myData[idx + BLUE] = color.b;
@@ -156,8 +175,11 @@ Image Image::flipHorizontal() const {
   Image result(this->myWidth, this->myHeight);
 
   for (int i_start= 0; i_start < this->myHeight; i_start++) {
+
+    // corresponding index of the pixel on the other side of the middle line
     int i_end= this->myHeight - 1 - i_start;
     for (int j= 0; j < this->myWidth; j++) {
+      
       result.set(i_start, j, this->get(i_end, j));
     }
   }
@@ -196,6 +218,7 @@ void Image::replace(const Image& image, int startx, int starty) {
   // loop condition protects against index out of bounds error
   for (int i= 0; i < image.height() && starty + i < this->myHeight; i++) {
     for (int j= 0; j < image.width() && startx + j < this->myWidth; j++) {
+
       this->set(startx + i, starty + j, image.get(i, j));
     }
   }  
@@ -260,6 +283,7 @@ Image Image::gammaCorrect(float gamma) const {
 }
 
 Image Image::alphaBlend(const Image& other, float alpha) const {
+  // assumes that images have the same dimensions
   assert(this->myWidth == other.width() && this->myHeight == other.height());
   Image result(this->myWidth, this->myHeight);
 
@@ -268,6 +292,7 @@ Image Image::alphaBlend(const Image& other, float alpha) const {
       Pixel blendedPixel= Pixel { 0, 0, 0 };
       Pixel pixel1= this->get(i, j);
       Pixel pixel2= other.get(i, j);
+
       blendedPixel.r= (float) pixel1.r * (1 - alpha) + (float) pixel2.r * alpha;
       blendedPixel.g= (float) pixel1.g * (1 - alpha) + (float) pixel2.g * alpha;
       blendedPixel.b= (float) pixel1.b * (1 - alpha) + (float) pixel2.b * alpha;
@@ -289,8 +314,11 @@ Image Image::grayscale() const {
   Image result(this->myWidth, this->myHeight);
   Pixel pixel;
   unsigned char intensity;
+
   for (int i= 0; i < this->myWidth * this->myHeight; i++) {
     pixel= this->get(i);
+
+    // Hardcoded values to make the greyscale intensity to look pleasing to human eye
     intensity= (float) pixel.r * 0.3f + (float) pixel.g * 0.59f + (float) pixel.b * 0.11f;
     
     pixel.r= intensity;
@@ -299,7 +327,6 @@ Image Image::grayscale() const {
 
     result.set(i, pixel);
   }
-
 
   return result;
 }

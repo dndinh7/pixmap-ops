@@ -36,7 +36,7 @@ int main(int argc, char** argv)
    copy.save("feep-test-assignment.png"); // should match original and load into gimp
 
    // should print r,g,b
-   cout << "printing r,g,b" << endl;
+   cout << "printing r,g,b at 1,1" << endl;
    Pixel pixel = image.get(1, 1);
    cout << (int) pixel.r << " " << (int) pixel.g << " " << (int) pixel.b << endl;
 
@@ -95,6 +95,12 @@ int main(int argc, char** argv)
    Image replaced_earth= image;
    replaced_earth.replace(soup, 0, 0);
    replaced_earth.save("earth-soup-replaced.png");
+
+   // replacing, but second image does not fit completely
+   cout << "replacing a part of earth with soup, but out of bounds" << std::endl;
+   Image replaced_earth_out= image;
+   replaced_earth_out.replace(soup, 300, 300);
+   replaced_earth_out.save("earth-soup-replaced-out-of-bounds.png");
 
 
    int y = (int) (0.5f * (image.width() - soup.width()));
