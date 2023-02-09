@@ -1,5 +1,17 @@
 # pixmap-ops
 
+Supported Image Manipulation Methods:
+- Invert
+- Swirl
+- Rotate90
+- Bitmap
+- Sharpen
+- Gaussian Blur
+- Box Blur
+- Ridge Detection
+- Unsharp Masking
+- Sobel Operator
+
 Image manipulation demos based on the PPM image format.
 
 TODO: Add a representative image for your project here
