@@ -35,6 +35,11 @@ namespace agl {
 
 enum Color { RED = 0, GREEN, BLUE };
 
+// Function to clamp value
+int clamp(int value, int low, int hi) {
+  return std::min(std::max(value, low), hi);
+}
+
 Image::Image() {
   this->myData= nullptr;
 }
@@ -42,6 +47,7 @@ Image::Image() {
 Image::Image(int width, int height): myWidth(width), myHeight(height) {
   this->myData= new unsigned char[width * height * NUM_CHANNELS];
   this->totalBytes= width * height * NUM_CHANNELS;
+  this->totalPixels= width * height;
 }
 
 
@@ -79,11 +85,16 @@ int Image::bytes() const {
   return this->totalBytes;
 }
 
+int Image::pixelCount() const {
+  return this->totalPixels;
+}
+
 void Image::set(int width, int height, unsigned char* data) {
   assert(sizeof(data) != width * height * NUM_CHANNELS);
   this->myWidth= width;
   this->myHeight= height;
   this->totalBytes= this->myWidth * this->myHeight * NUM_CHANNELS;
+  this->totalPixels= this->myWidth * this->myHeight;
 
   // Assures that we clean up the data we are replacing to avoid leaks
   if (this->myData != nullptr) {
@@ -137,7 +148,7 @@ void Image::set(int row, int col, const Pixel& color) {
 
 Pixel Image::get(int i) const
 {
-  assert(i >= 0 && i < this->myWidth * this->myHeight);
+  assert(i >= 0 && i < this->totalPixels);
   int idx= i * NUM_CHANNELS;
 
   return Pixel{ this->myData[idx + RED], this->myData[idx + GREEN], this->myData[idx + BLUE] };
@@ -145,7 +156,7 @@ Pixel Image::get(int i) const
 
 void Image::set(int i, const Pixel& c)
 {
-  assert(i >= 0 && i < this->myWidth * this->myHeight);
+  assert(i >= 0 && i < this->totalPixels);
   int idx= i * NUM_CHANNELS;
   this->myData[idx + RED]= c.r;
   this->myData[idx + GREEN]= c.g;
@@ -193,8 +204,24 @@ Image Image::flipVertical() const {
   return result;
 }
 
+Image Image::flipPositiveDiagonal() const {
+  // switch dimensions to actually flip them correctly by swapping i,j -> j,i
+  Image result(this->myHeight, this->myWidth);
+
+  // invariant is that we only traverse the bottom triangle
+  for (int i= 0; i < this->myHeight; i++) {
+    for (int j= 0; j < this->myWidth; j++) {
+      Pixel curPixel= this->get(i, j);
+      result.set(j, i, curPixel); // place the pixel in mirrored position
+    }
+  }
+
+  return result;
+}
+
 Image Image::rotate90() const {
-  Image result(0, 0);
+  Image flippedHorizontally= this->flipHorizontal();
+  Image result= flippedHorizontally.flipPositiveDiagonal();
   
   return result;
 }
@@ -225,51 +252,123 @@ void Image::replace(const Image& image, int startx, int starty) {
 }
 
 Image Image::swirl() const {
-  Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->myHeight; i++) {
+    for (int j= 0; j < this->myWidth; j++) {
+      Pixel pixel= this->get(i, j);
+      unsigned char tempRed= pixel.r;
+      pixel.r= pixel.b;
+      pixel.b= pixel.g;
+      pixel.g= tempRed;
+
+      result.set(i, j, pixel);
+    }
+  }
   return result;
 }
 
 Image Image::add(const Image& other) const {
-  Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= this->get(i);
+    Pixel pixel2= other.get(i);
+    Pixel resultPixel;
+    resultPixel.r= std::min(pixel1.r + pixel2.r, 255);
+    resultPixel.g= std::min(pixel1.g + pixel2.g, 255);
+    resultPixel.b= std::min(pixel1.b + pixel2.b, 255);
+    result.set(i, resultPixel);
+  }
   
   return result;
 }
 
 Image Image::subtract(const Image& other) const {
-  Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= this->get(i);
+    Pixel pixel2= other.get(i);
+    Pixel resultPixel;
+    resultPixel.r= std::max(pixel1.r - pixel2.r, 0);
+    resultPixel.g= std::max(pixel1.g - pixel2.g, 0);
+    resultPixel.b= std::max(pixel1.b - pixel2.b, 0);
+    result.set(i, resultPixel);
+  }
    
   return result;
 }
 
 Image Image::multiply(const Image& other) const {
-  Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= this->get(i);
+    Pixel pixel2= other.get(i);
+    Pixel resultPixel;
+    resultPixel.r= std::min(pixel1.r * pixel2.r, 255);
+    resultPixel.g= std::min(pixel1.g * pixel2.g, 255);
+    resultPixel.b= std::min(pixel1.b * pixel2.b, 255);
+    result.set(i, resultPixel);
+  }
    
   return result;
 }
 
 Image Image::difference(const Image& other) const {
-  Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= this->get(i);
+    Pixel pixel2= other.get(i);
+    Pixel resultPixel;
+    resultPixel.r= std::abs(pixel1.r - pixel2.r);
+    resultPixel.g= std::abs(pixel1.g - pixel2.g);
+    resultPixel.b= std::abs(pixel1.b - pixel2.b);
+    result.set(i, resultPixel);
+  }
   
   return result;
 }
 
 Image Image::lightest(const Image& other) const {
-  Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= this->get(i);
+    Pixel pixel2= other.get(i);
+    Pixel resultPixel;
+    resultPixel.r= std::max(pixel1.r, pixel2.r);
+    resultPixel.g= std::max(pixel1.g, pixel2.g);
+    resultPixel.b= std::max(pixel1.b, pixel2.b);
+    result.set(i, resultPixel);
+  }
   
   return result;
 }
 
 Image Image::darkest(const Image& other) const {
-   Image result(0, 0);
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= this->get(i);
+    Pixel pixel2= other.get(i);
+    Pixel resultPixel;
+    resultPixel.r= std::min(pixel1.r, pixel2.r);
+    resultPixel.g= std::min(pixel1.g, pixel2.g);
+    resultPixel.b= std::min(pixel1.b, pixel2.b);
+    result.set(i, resultPixel);
+  }
   
-   return result;
+  return result;
 }
 
 Image Image::gammaCorrect(float gamma) const {
   Image result(this->myWidth, this->myHeight);
    
 
-  for (int i= 0; i < this->myWidth * this->myHeight; i++) {
+  for (int i= 0; i < this->totalPixels; i++) {
     Pixel pixel= this->get(i);
 
     pixel.r= std::pow(pixel.r/255.0f, 1.0f/gamma) * 255;
@@ -305,9 +404,20 @@ Image Image::alphaBlend(const Image& other, float alpha) const {
 }
 
 Image Image::invert() const {
-   Image image(0, 0);
-   
-   return image;
+  Image image(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel= this->get(i);
+
+    pixel.r= 255 - pixel.r;
+    pixel.g= 255 - pixel.g;
+    pixel.b= 255 - pixel.b;    
+
+    image.set(i, pixel);
+
+  }
+
+  return image;
 }
 
 Image Image::grayscale() const {
@@ -315,7 +425,7 @@ Image Image::grayscale() const {
   Pixel pixel;
   unsigned char intensity;
 
-  for (int i= 0; i < this->myWidth * this->myHeight; i++) {
+  for (int i= 0; i < this->totalPixels; i++) {
     pixel= this->get(i);
 
     // Hardcoded values to make the greyscale intensity to look pleasing to human eye
@@ -332,24 +442,161 @@ Image Image::grayscale() const {
 }
 
 Image Image::colorJitter(int size) const {
-   Image image(0, 0);
-  
-   return image;
+  Image image(0, 0);
+ 
+  return image;
 }
 
 Image Image::bitmap(int size) const {
-  Image image(0, 0);
+  Image image(this->myWidth, this->myHeight);
+
    
   return image;
 }
 
 void Image::fill(const Pixel& c) {
+
+}
+
+Image Image::sharpen() const {
+  int kernel[] {0, -1, 0,
+               -1, 5, -1,
+                0, -1, 0};
+  
+  Image result= this->convolute(kernel, 1, 3);
+
+  return result;
+
+}
+
+Image Image::identity() const {
+  int kernel[] {0, 0, 0,
+                0, 1, 0,
+                0, 0, 0};
+
+  Image result= this->convolute(kernel, 1, 3);
+  return result;
+}
+
+Image Image::gaussianBlur() const {
+  int kernel[] {1, 2, 1,
+                2, 4, 2,
+                1, 2, 1};
+  float scale= 1.0f/16.0f;
+
+  Image result= this->convolute(kernel, scale, 3);
+
+  return result;
+}
+
+Image Image::boxBlur() const {
+  int kernel[] {1, 1, 1,
+                1, 1, 1,
+                1, 1, 1};
+  float scale= 1.0f/9.0f;
+
+  Image result= this->convolute(kernel, scale, 3);
+
+  return result;
+}
+
+Image Image::ridgeDetection() const {
+  //int kernel[] {-1, -1, -1, -1, 8, -1, -1, -1, -1};
+  int kernel[] {0, -1, 0,
+               -1, 4, -1,
+                0, -1, 0}; 
+  Image result= this->convolute(kernel, 1, 3);
+
+  return result;
+}
+
+Image Image::unsharpMasking() const {
+  int kernel[] {1, 4, 6, 4, 1,
+                4, 16, 24, 16, 4,
+                6, 24, -476, 24, 6,
+                4, 16, 24, 16, 4,
+                1, 4, 6, 4, 1};
+  float scale= -1/256.0f;
+
+  Image result= this->convolute(kernel, scale, 5);
+  return result;
+}
+
+Image Image::sobel() const {
+  int kernel1[] {-1, 0, 1,
+                  -2, 0, 2,
+                  -1, 0, 1};
+  int kernel2[] {1, 2, 1,
+                 0, 0, 0,
+                 -1, -2, -1};
+      
+  Image G1= this->convolute(kernel1, 1, 3);
+  Image G2= this->convolute(kernel2, 1, 3);
+
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel1= G1.get(i);
+    Pixel pixel2= G2.get(i);
+
+    unsigned char r= clamp(std::sqrt((float) pixel1.r * (float) pixel1.r + (float) pixel2.r * (float) pixel2.r), 0, 255);
+    unsigned char g= clamp(std::sqrt((float) pixel1.g * (float) pixel1.g + (float) pixel2.g * (float) pixel2.g), 0, 255);
+    unsigned char b= clamp(std::sqrt((float) pixel1.b * (float) pixel1.b + (float) pixel2.b * (float) pixel2.b), 0, 255);
+
+    result.set(i, Pixel{r, g, b});
   }
+  
+  return result;
+}
 
 void Image::inImageCheck(int row, int col) const {
   assert(row >= 0 && row < this->myHeight);
   assert(col >= 0 && col < this->myWidth);
   assert(this->myData != nullptr);
+}
+
+
+Image Image::convolute(int kernel[], float kernelScale, int sideLength) const {
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->myHeight; i++) {
+    for (int j= 0; j < this->myWidth; j++) {
+      Pixel accumulator= {0, 0, 0};
+      float accumulatorRed= 0;
+      float accumulatorGreen= 0;
+      float accumulatorBlue= 0;
+
+      // convolute operator
+      for (int k_i= 0; k_i < sideLength; k_i++) {
+        for (int k_j= 0; k_j < sideLength; k_j++) {
+          int i_offset= k_i - 1; // so we get -1, 0, or 1
+          int j_offset= k_j - 1;
+
+          int pixel_i= clamp(i + i_offset, 0, this->myHeight - 1);
+          int pixel_j= clamp(j + j_offset, 0, this->myWidth - 1);
+
+
+          Pixel pixel= this->get(pixel_i, pixel_j);
+
+          // convolution operator requires us to multiply the index
+          // mirrored to the pixel aka (m-i-1, n-j-1)
+          int kernel_idx= (sideLength - 1 - k_i) * sideLength + (sideLength - 1 - k_j);
+          accumulatorRed += kernelScale * kernel[kernel_idx] * pixel.r;
+          accumulatorGreen += kernelScale * kernel[kernel_idx] * pixel.g;
+          accumulatorBlue += kernelScale * kernel[kernel_idx] * pixel.b;
+        }
+      }
+
+      accumulator.r= clamp(accumulatorRed, 0, 255);
+      accumulator.g= clamp(accumulatorGreen, 0, 255);
+      accumulator.b= clamp(accumulatorBlue, 0, 255);
+      
+      result.set(i, j, accumulator);
+
+    }
+  }
+
+  return result;
 }
 
 }  // namespace agl

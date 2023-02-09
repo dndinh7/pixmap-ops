@@ -69,6 +69,13 @@ class Image {
   int bytes() const;
 
   /**
+   * @brief Returns the total pixels of the image
+   * 
+   * Size: width * height
+  */
+ int pixelCount() const;
+
+  /**
    * @brief Replace image RGB data
    * @param width The new image width
    * @param height The new image height
@@ -120,6 +127,8 @@ class Image {
 
   // flip around the vertical midline
   Image flipVertical() const;
+
+  Image flipPositiveDiagonal() const;
 
   // rotate the Image 90 degrees
   Image rotate90() const;
@@ -185,7 +194,7 @@ class Image {
   // Convert the image to grayscale
   Image grayscale() const;
 
-  // return a bitmap version of this image
+  // Jitters the colors
   Image colorJitter(int size) const;
 
   // return a bitmap version of this image
@@ -197,11 +206,42 @@ class Image {
   // Checks if the args row and col are in the range and if myData is not nullptr
   void inImageCheck(int row, int col) const;
 
+  /**
+   * Convolute: applies a kernel to the image
+   * @Parameters:
+   * kernel: an n by n sized matrix 
+   * kernelScale: is what the matrix is scaled by 
+   * sideLength: n length
+  */
+  Image convolute(int kernel[], float kernelScale, int sideLength) const;
+
+  // Sharpens image using kernels
+  Image sharpen() const;
+
+  // Identity image using kernel
+  Image identity() const;
+
+  // Applies a 3x3 Gaussian Blur
+  Image gaussianBlur() const;
+
+  // Applies a Box Blur
+  Image boxBlur() const;
+
+  // Ridge Detection
+  Image ridgeDetection() const;
+
+  // Unsharp Masking
+  Image unsharpMasking() const;
+
+  // Sobel operator
+  Image sobel() const;
+
   private:
     int myWidth;
     int myHeight;
     unsigned char* myData;
     int totalBytes;
+    int totalPixels;
 };
 }  // namespace agl
 #endif  // AGL_IMAGE_H_
