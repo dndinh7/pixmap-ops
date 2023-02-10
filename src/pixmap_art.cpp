@@ -27,6 +27,9 @@ using namespace agl;
  * - Increase RGB value by already existing ones
  * - Decrease RGB value by already existing ones
  * - Color Jitter
+ * 
+ * The user can add more images to the vector 
+ * in order to manipulate more images.
 */
 
 int main(int argc, char** argv)
