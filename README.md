@@ -13,15 +13,52 @@ Supported Image Manipulation Methods:
 - Sobel Operator
 - Add
 - Subtraction
-- Difference
-- Multiply
-- Darkest
-- Lightest
+- Difference (not shown)
+- Multiply (not shown)
+- Darkest (not shown)
+- Lightest (not shown)
+- Grid Copy
+- Color Jitter
+- Glow
+
+First the program grid copies the given image into a 5x4 grid of the same image, then the image effects from Top-Left to Bottom-Right:
+
+- Original,        Gaussian Blur, Box Blur, Unsharp Masking 
+- Sobel Operator,  Greyscale,     Invert,   Bitmap
+- Ridge Detection, Sharpen,       Swirl,    Rotating 180
+- Glow,            Redify,        Greenify, Blueify
+- Redless,         Greenless,     Blueless, Color Jitter     
 
 
-Image manipulation demos based on the PPM image format.
 
-TODO: Add a representative image for your project here
+Earth Images
+
+![earth](https://user-images.githubusercontent.com/72237791/218003167-59f76e32-78a3-4535-9867-d47db5330c4b.png)
+
+Squirrel Images
+
+![squirrel](https://user-images.githubusercontent.com/72237791/218003190-c8d5fc68-874c-445f-bc6f-7caacd30ad46.png)
+
+Heimerdinger Images
+
+![heimer](https://user-images.githubusercontent.com/72237791/218003222-89db528c-4c76-4b79-b563-e449981608af.png)
+
+Jinx Images
+
+![jinx-min](https://user-images.githubusercontent.com/72237791/218003921-d5f264c3-b92a-46a0-8645-d605dbd2d715.png)
+
+Scenery Images
+
+![scenery-min](https://user-images.githubusercontent.com/72237791/218003936-e6aef3a6-bf9c-4d86-988d-6afd79502fdb.png)
+
+Ghost Psyduck Effect
+
+![psyduck_ghost](https://user-images.githubusercontent.com/72237791/218003308-d9113faa-5256-4f2d-b878-75f788fd4fe1.png)
+
+
+
+
+
 
 ## How to build
 
