@@ -28,7 +28,7 @@
  * - Addition
  * - Subtraction
  * - Multiply
- * - Difference
+ * - Difference 
  * - Lightest
  * - Darkest
  * - Sharpen

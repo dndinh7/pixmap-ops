@@ -116,18 +116,6 @@ int main(int argc, char** argv)
    Image blend = background.alphaBlend(soup, 0.5f);
    image.replace(blend, x, y);
    image.save("earth-blend-0.5.png");
-   
-   /*
-   Image yin_yang; 
-   if (!yin_yang.load("../images/yin_and_yang.png")) {
-      std::cout << "ERROR: Cannot load image! Exiting...\n";
-      exit(0);
-   }
-
-   cout << "Rotating 90 degrees" << endl;
-   Image rotated_yy= yin_yang.rotate90();
-   rotated_yy.save("rotated_yin_yang.png");
-   */
 
    Image earth;
    // test a non-trivial image
@@ -144,10 +132,6 @@ int main(int argc, char** argv)
    cout << "Bitmap earth" << endl;
    Image bitmap_earth= earth.bitmap(8);
    bitmap_earth.save("bitmap_earth.png");
-
-   //cout << "Identity earth" << endl;
-   //Image identity_earth= earth.identity();
-   //identity_earth.save("identity_earth.png");
 
    Image squirrel;
    if (!squirrel.load("../images/squirrel.png")) {
@@ -177,16 +161,6 @@ int main(int argc, char** argv)
    cout << "sobel operator on squirrel" << endl;
    Image sobel_squirrel= squirrel.sobel();
    sobel_squirrel.save("sobel_squirrel.png");
-
-   Image valve;
-   if (!valve.load("../images/valve.png")) {
-      std::cout << "Error: Cannot load image! Exiting...\n";
-      exit(0);
-   }
-
-   cout << "sobel operator on valve" << endl;
-   Image sobel_valve= valve.sobel();
-   sobel_valve.save("sobel_valve.png");
 
    cout << "invert operator on squirrel" << endl;
    Image invert_squirrel= squirrel.invert();
