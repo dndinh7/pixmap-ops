@@ -11,6 +11,13 @@ Supported Image Manipulation Methods:
 - Ridge Detection
 - Unsharp Masking
 - Sobel Operator
+- Add
+- Subtraction
+- Difference
+- Multiply
+- Darkest
+- Lightest
+
 
 Image manipulation demos based on the PPM image format.
 
