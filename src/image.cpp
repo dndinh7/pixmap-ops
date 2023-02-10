@@ -14,6 +14,24 @@
  * - Greyscale
  * - Gamma Correction
  * - Alpha Blend
+ * - Rotating 90 degrees
+ * - Grid Copying
+ * - Gaussian Blur
+ * - Box Blur
+ * - Unsharp Masking
+ * - Sobel Operator
+ * - Invert
+ * - Bitmap
+ * - Ridge Detection
+ * - Color Swirl
+ * - Color Extraction
+ * - Addition
+ * - Subtraction
+ * - Multiply
+ * - Difference
+ * - Lightest
+ * - Darkest
+ * - Sharpen
  * 
  * @author David Dinh
  * @version Feb 2, 2023
@@ -28,6 +46,9 @@
 #include "stb/stb_image.h"
 #include <algorithm>
 #include <cstring>
+#include <cmath>
+#include <stdlib.h>
+#include <time.h>
 
 #define NUM_CHANNELS 3 // assumes that there will only be three components in an image
 
@@ -112,7 +133,8 @@ bool Image::load(const std::string& filename, bool flip) {
 
   bool success= data != nullptr;
 
-  this->set(this->myWidth, this->myHeight, data);
+  // so we don't set if it fails
+  if (success) this->set(this->myWidth, this->myHeight, data);
 
   stbi_image_free(data);
 
@@ -176,7 +198,6 @@ Image Image::resize(int w, int h) const {
       j_1= colRatio_2 * (this->myWidth - 1);
       
       result.set(i_2, j_2, this->get(i_1, j_1));
-
     }
   }
   return result;
@@ -194,9 +215,7 @@ Image Image::flipHorizontal() const {
       result.set(i_start, j, this->get(i_end, j));
     }
   }
-
   return result;
-
 }
 
 Image Image::flipVertical() const {
@@ -241,12 +260,27 @@ Image Image::subimage(int startx, int starty, int w, int h) const {
 }
 
 void Image::replace(const Image& image, int startx, int starty) {
-
   // loop condition protects against index out of bounds error
   for (int i= 0; i < image.height() && starty + i < this->myHeight; i++) {
     for (int j= 0; j < image.width() && startx + j < this->myWidth; j++) {
 
-      this->set(startx + i, starty + j, image.get(i, j));
+      this->set(starty + i, startx + j, image.get(i, j));
+    }
+  }  
+}
+
+void Image::replaceAlpha(const Image& other, float alpha, int startx, int starty) {
+  for (int i= 0; i < other.height() && starty + i < this->myHeight; i++) {
+    for (int j= 0; j < other.width() && startx + j < this->myWidth; j++) {
+      Pixel blendedPixel {0, 0, 0};
+      Pixel pixel1= this->get(starty + i, startx + j);
+      Pixel pixel2= other.get(i, j);
+
+      blendedPixel.r= (float) pixel1.r * (1 - alpha) + (float) pixel2.r * alpha;
+      blendedPixel.g= (float) pixel1.g * (1 - alpha) + (float) pixel2.g * alpha;
+      blendedPixel.b= (float) pixel1.b * (1 - alpha) + (float) pixel2.b * alpha;
+      
+      this->set(starty + i, startx + j, blendedPixel);
     }
   }  
 }
@@ -258,9 +292,9 @@ Image Image::swirl() const {
     for (int j= 0; j < this->myWidth; j++) {
       Pixel pixel= this->get(i, j);
       unsigned char tempRed= pixel.r;
-      pixel.r= pixel.b;
-      pixel.b= pixel.g;
-      pixel.g= tempRed;
+      pixel.r= pixel.g;
+      pixel.g= pixel.b;
+      pixel.b= tempRed;
 
       result.set(i, j, pixel);
     }
@@ -416,7 +450,6 @@ Image Image::invert() const {
     image.set(i, pixel);
 
   }
-
   return image;
 }
 
@@ -442,7 +475,36 @@ Image Image::grayscale() const {
 }
 
 Image Image::colorJitter(int size) const {
-  Image image(0, 0);
+  Image image(this->myWidth, this->myHeight);
+
+  srand(time(NULL));
+
+  int numCols= this->myWidth  / size + ((this->myWidth  % size != 0) ? 1 : 0);
+  int numRows= this->myHeight / size + ((this->myHeight % size != 0) ? 1 : 0);
+
+  for (int i= 0; i < numRows; i++) {
+    for (int j= 0; j < numCols; j++) {
+      int i_start= i * size;
+      int j_start= j * size;
+      int i_end= std::min(this->myHeight, (i+1) * size);
+      int j_end= std::min(this->myWidth,  (j+1) * size);
+
+      int redJitter= std::rand() % 80 - 40;
+      int greenJitter= std::rand() % 80 - 40;
+      int blueJitter= std::rand() % 80 - 40;
+      for (int row= i_start; row < i_end; row++) {
+        for (int col= j_start; col < j_end; col++) {
+          Pixel pixel= this->get(row, col);
+          pixel.r= clamp(pixel.r + redJitter, 0, 255);
+          pixel.g= clamp(pixel.g + greenJitter, 0, 255);
+          pixel.b= clamp(pixel.b + blueJitter, 0, 255);
+
+          image.set(row, col, pixel);
+        }
+      }
+    }
+  }
+
  
   return image;
 }
@@ -450,12 +512,50 @@ Image Image::colorJitter(int size) const {
 Image Image::bitmap(int size) const {
   Image image(this->myWidth, this->myHeight);
 
-   
+  // if it is not easily divisible by size, we need to iterate once more
+  // to get the corners
+  int numCols= this->myWidth  / size + ((this->myWidth  % size != 0) ? 1 : 0);
+  int numRows= this->myHeight / size + ((this->myHeight % size != 0) ? 1 : 0);
+
+  for (int i= 0; i < numRows; i++) {
+    for (int j= 0; j < numCols; j++) {
+      int i_start= i * size;
+      int j_start= j * size;
+      int i_end= std::min(this->myHeight, (i+1) * size);
+      int j_end= std::min(this->myWidth,  (j+1) * size);
+      int accumulatedRed= 0;
+      int accumulatedGreen= 0;
+      int accumulatedBlue= 0;
+      int count= 0; // although size could be size * size, edge cases
+      for (int row= i_start; row < i_end; row++) {
+        for (int col= j_start; col < j_end; col++) {
+          Pixel pixel= this->get(row, col);
+          accumulatedRed+= pixel.r;
+          accumulatedGreen+= pixel.g;
+          accumulatedBlue+= pixel.b;
+          count++;
+        }
+      }
+
+      // this will be assigned to each pixel in the size by size pixels
+      unsigned char red= accumulatedRed/count;
+      unsigned char green= accumulatedGreen/count;
+      unsigned char blue= accumulatedBlue/count;
+
+
+      Pixel avgPixel {red, green, blue};
+
+      for (int row= i_start; row < i_end; row++) {
+        for (int col= j_start; col < j_end; col++) {
+          image.set(row, col, avgPixel);
+        }
+      }
+
+    }
+  }
+
+
   return image;
-}
-
-void Image::fill(const Pixel& c) {
-
 }
 
 Image Image::sharpen() const {
@@ -501,10 +601,8 @@ Image Image::boxBlur() const {
 }
 
 Image Image::ridgeDetection() const {
-  //int kernel[] {-1, -1, -1, -1, 8, -1, -1, -1, -1};
-  int kernel[] {0, -1, 0,
-               -1, 4, -1,
-                0, -1, 0}; 
+  int kernel[] {-1, -1, -1, -1, 8, -1, -1, -1, -1};
+
   Image result= this->convolute(kernel, 1, 3);
 
   return result;
@@ -546,6 +644,84 @@ Image Image::sobel() const {
     result.set(i, Pixel{r, g, b});
   }
   
+  return result;
+}
+
+Image Image::extract(const Pixel& low, const Pixel& high) const {
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel= this->get(i);
+    if (pixel.r < low.r || pixel.g < low.g || pixel.b < low.b ||
+        pixel.r > high.r || pixel.g > high.g || pixel.b > high.b) {
+      pixel.r= 0;
+      pixel.g= 0;
+      pixel.b= 0;
+    }
+    result.set(i, pixel);
+  }
+
+  return result;
+}
+
+Image Image::extractRed() const {
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel= this->get(i);
+    pixel.g= 0;
+    pixel.b= 0;
+    
+    result.set(i, pixel);
+  }
+
+  return result;
+}
+
+Image Image::extractGreen() const {
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel= this->get(i);
+    pixel.r= 0;
+    pixel.b= 0;
+    
+    result.set(i, pixel);
+  }
+
+  return result;
+}
+
+Image Image::extractBlue() const {
+  Image result(this->myWidth, this->myHeight);
+
+  for (int i= 0; i < this->totalPixels; i++) {
+    Pixel pixel= this->get(i);
+    pixel.r= 0;
+    pixel.g= 0;
+    
+    result.set(i, pixel);
+  }
+
+  return result;
+}
+
+Image Image::gridCopy(int m, int n) const {
+  Image result(this->myWidth * n, this->myHeight * m);
+  unsigned char* data= result.data();
+
+  int widthBytes= this->myWidth * 3;
+
+  // this iterates row-by-row of our current image
+  // and copies the bytes directly over to each grid cell
+  // in result
+  for (int i= 0; i < m * this->myHeight; i++) {
+    for (int j= 0; j < n; j++) {
+      memcpy(data + (i * n * widthBytes + j * widthBytes), this->myData + 
+        (i % this->myHeight * widthBytes), widthBytes);
+    }
+  }
+
   return result;
 }
 
@@ -598,6 +774,11 @@ Image Image::convolute(int kernel[], float kernelScale, int sideLength) const {
 
   return result;
 }
+
+Image Image::glow(const Pixel& low, const Pixel& high) const {
+  return this->add(this->extract(low, high).boxBlur());
+}
+
 
 }  // namespace agl
 

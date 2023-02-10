@@ -1,5 +1,7 @@
 // Copyright 2021, Aline Normoyle, alinen
 
+// Note that I removed the fill method, since I did not implement it
+
 #ifndef AGL_IMAGE_H_
 #define AGL_IMAGE_H_
 
@@ -138,7 +140,10 @@ class Image {
 
   // Replace the portion starting at (row, col) with the given image
   // Clamps the image if it doesn't fit on this image
-  void replace(const Image& image, int x, int y);
+  // NOTE: startx corresponds to the COL position
+  //       starty corresponds to the ROW position
+  // starting from the top left is (0, 0)
+  void replace(const Image& image, int startx, int starty);
 
   // swirl the colors 
   Image swirl() const;
@@ -195,13 +200,15 @@ class Image {
   Image grayscale() const;
 
   // Jitters the colors
+  // Parameter size is the size x size cell we 
+  // apply the jitter to 
   Image colorJitter(int size) const;
 
   // return a bitmap version of this image
+  // note that the bits will be a square of size by size
+  // except the right and bottom if the dimensions
+  // of the image are not divisible by size
   Image bitmap(int size) const;
-
-  // Fill this image with a color
-  void fill(const Pixel& c);
 
   // Checks if the args row and col are in the range and if myData is not nullptr
   void inImageCheck(int row, int col) const;
@@ -235,6 +242,28 @@ class Image {
 
   // Sobel operator
   Image sobel() const;
+
+  // Extract all pixels that have values above the low pixel's rgb values
+  // and below the high pixel's rgb values (all channels must be between those values)
+  Image extract(const Pixel& low, const Pixel& high) const;
+
+  // Extract red channel 
+  Image extractRed() const;
+
+  // Extract green channel
+  Image extractGreen() const;
+
+  // Extract blue channel
+  Image extractBlue() const;
+
+  // GridCopy will copy the current image and paste it in a m x n grid
+  Image gridCopy(int m, int n) const;
+
+  // This will glow pixels that are extracted in the range low and high
+  Image glow(const Pixel& low, const Pixel& high) const;
+
+  // This will replace and do an alpha blend
+  void replaceAlpha(const Image& other, float alpha, int startx, int starty);
 
   private:
     int myWidth;
